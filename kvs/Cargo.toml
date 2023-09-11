@@ -1,0 +1,19 @@
+[package]
+name = "kvs"
+version = "0.1.0"
+authors = ["Balzhinimaev Lopson <geekwebs@yandex.ru>"]
+description = "A key-value store"
+edition = "2018"
+license = "MIT"
+keywords = ["key-value store", "talent-plan-project"]
+repository = ""
+categories = ["learning-project"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+assert_cmd = "2.0.12"
+predicates = "3.0.3"
+
+[dependencies]
+clap = { version = "4.4.2", features = ["derive"] }
