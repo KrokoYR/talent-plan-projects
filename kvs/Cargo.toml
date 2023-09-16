@@ -16,4 +16,4 @@ assert_cmd = "2.0.12"
 predicates = "3.0.3"
 
 [dependencies]
-clap = { version = "4.4.2", features = ["derive"] }
+clap = { version = "4.4.2", features = ["derive", "cargo"] }

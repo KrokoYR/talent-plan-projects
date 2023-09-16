@@ -57,3 +57,26 @@ fn main() {
         }
     }
 }
+
+// Example for clap's "cargo" feature
+// use std::path::PathBuf;
+
+// use clap::{arg, command, value_parser};
+
+// fn main() {
+//     let matches = command!() // requires `cargo` feature
+//         .arg(arg!([name] "Optional name to operate on"))
+//         .arg(
+//             arg!(
+//                 -c --config <FILE> "Sets a custom config file"
+//             )
+//             // We don't have syntax yet for optional options, so manually calling `required`
+//             .required(false)
+//             .value_parser(value_parser!(PathBuf)),
+//         )
+//         .arg(arg!(
+//             -d --debug ... "Turn debugging information on"
+//         ));
+
+//     println!("Matches: {:?}", matches);
+// }
