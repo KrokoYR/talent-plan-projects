@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
-use std::env;
-use std::process::exit;
+use kvs::{KvError, KvStore};
+use std::env::current_dir;
 
 #[derive(Parser, Debug)]
 #[command(name=env!("CARGO_PKG_NAME"))]
@@ -36,47 +36,43 @@ enum Commands {
     },
 }
 
-fn main() {
+fn main() -> Result<(), KvError> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Get { key: _ }) => {
-            eprintln!("unimplemented");
-            exit(1);
+        Some(Commands::Get { key }) => {
+            let mut kv_store = KvStore::open(current_dir()?)?;
+            match kv_store.get(key.to_owned()) {
+                Ok(maybe_key) => match maybe_key {
+                    Some(v) => {
+                        println!("{}", v);
+                    }
+                    None => {
+                        println!("Key not found");
+                    }
+                },
+                Err(err) => {
+                    println!("{}", err.to_string());
+                    std::process::exit(1);
+                }
+            };
         }
-        Some(Commands::Set { key: _, value: _ }) => {
-            eprintln!("unimplemented");
-            exit(1);
+        Some(Commands::Set { key, value }) => {
+            let mut kv_store = KvStore::open(current_dir()?)?;
+            kv_store.set(key.to_owned(), value.to_owned())?;
         }
-        Some(Commands::Rm { key: _ }) => {
-            eprintln!("unimplemented");
-            exit(1);
+        Some(Commands::Rm { key }) => {
+            let mut kv_store = KvStore::open(current_dir()?)?;
+            match kv_store.remove(key.to_owned()) {
+                Ok(_) => {}
+                Err(err) => {
+                    println!("{}", err.to_string());
+                    std::process::exit(1);
+                }
+            };
         }
-        None => {
-            unreachable!()
-        }
+        None => unreachable!(),
     }
+
+    Ok(())
 }
-
-// Example for clap's "cargo" feature
-// use std::path::PathBuf;
-
-// use clap::{arg, command, value_parser};
-
-// fn main() {
-//     let matches = command!() // requires `cargo` feature
-//         .arg(arg!([name] "Optional name to operate on"))
-//         .arg(
-//             arg!(
-//                 -c --config <FILE> "Sets a custom config file"
-//             )
-//             // We don't have syntax yet for optional options, so manually calling `required`
-//             .required(false)
-//             .value_parser(value_parser!(PathBuf)),
-//         )
-//         .arg(arg!(
-//             -d --debug ... "Turn debugging information on"
-//         ));
-
-//     println!("Matches: {:?}", matches);
-// }

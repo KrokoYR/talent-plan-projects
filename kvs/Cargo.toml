@@ -14,6 +14,12 @@ categories = ["learning-project"]
 [dev-dependencies]
 assert_cmd = "2.0.12"
 predicates = "3.0.3"
+walkdir = "2.2.7"
 
 [dependencies]
+bson = "2.7.0"
 clap = { version = "4.4.2", features = ["derive", "cargo"] }
+serde = { version = "1.0.188", features = ["derive"] }
+thiserror = "1.0.48"
+tempfile = "3.0.7"
+serde_json = "1.0.107"
