@@ -52,7 +52,7 @@ fn main() -> Result<(), KvError> {
                     }
                 },
                 Err(err) => {
-                    println!("{}", err.to_string());
+                    println!("{}", err);
                     std::process::exit(1);
                 }
             };
@@ -66,7 +66,7 @@ fn main() -> Result<(), KvError> {
             match kv_store.remove(key.to_owned()) {
                 Ok(_) => {}
                 Err(err) => {
-                    println!("{}", err.to_string());
+                    println!("{}", err);
                     std::process::exit(1);
                 }
             };
