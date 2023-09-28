@@ -10,6 +10,8 @@ use crate::{KvError, Result};
 use bson::Document;
 use serde::{Deserialize, Serialize};
 
+use super::KvEngine;
+
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 
 /// The `KvStore` stores string key/value pairs.
@@ -21,6 +23,7 @@ const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 /// ```rust
 /// # use kvs::KvStore;
 /// # use tempfile::TempDir;
+/// # use crate::kvs::KvEngine;
 /// let temp_dir = TempDir::new().unwrap();
 /// let mut store = KvStore::open(temp_dir.path()).unwrap();
 /// store.set("key".to_owned(), "value".to_owned()).unwrap();
@@ -72,80 +75,6 @@ impl KvStore {
         })
     }
 
-    /// Sets the value of a string key to a string.
-    ///
-    /// If the key already exists, the previous value will be overwritten.
-    pub fn set(&mut self, key: String, value: String) -> Result<()> {
-        let cmd = Command::set(key, value);
-        let pos = self.writer.pos;
-
-        let mut buffer = bson::to_vec(&cmd)?;
-        writeln!(buffer)?;
-        self.writer.write_all(&buffer)?;
-        self.writer.flush()?;
-
-        if let Command::Set { key, .. } = cmd {
-            if let Some(old_cmd) = self
-                .index
-                .insert(key, (self.current_gen, pos..self.writer.pos).into())
-            {
-                self.uncompacted += old_cmd.len;
-            }
-        }
-
-        if self.uncompacted > COMPACTION_THRESHOLD {
-            self.compact()?;
-        }
-
-        Ok(())
-    }
-
-    /// Gets the string value of a given string key.
-    ///
-    /// Returns `None` if the given key does not exist.
-    pub fn get(&mut self, key: String) -> Result<Option<String>> {
-        if let Some(cmd_pos) = self.index.get(&key) {
-            let reader = self
-                .readers
-                .get_mut(&cmd_pos.gen)
-                .expect("Cannot find log reader");
-
-            let buf_size = cmd_pos.len as usize;
-            let mut value_buf = vec![0u8; buf_size];
-
-            reader.seek(SeekFrom::Start(cmd_pos.pos))?;
-            reader.read_exact(&mut value_buf)?;
-
-            let document = Document::from_reader(&mut value_buf.as_slice()).unwrap();
-            if let Command::Set { value, .. } = bson::from_document(document)? {
-                Ok(Some(value))
-            } else {
-                Err(KvError::UnexpectedCommandType)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Remove a given key.
-    pub fn remove(&mut self, key: String) -> Result<()> {
-        if self.index.contains_key(&key) {
-            let cmd = Command::remove(key);
-            let buffer = bson::to_vec(&cmd)?;
-            self.writer.write_all(&buffer)?;
-            self.writer.flush()?;
-
-            if let Command::Remove { key } = cmd {
-                let old_cmd = self.index.remove(&key).expect("Key not found");
-                self.uncompacted += old_cmd.len;
-            }
-
-            Ok(())
-        } else {
-            Err(KvError::NotFound)
-        }
-    }
-
     /// Clear stale entries in the log
     ///
     /// Runs ones [self.index] threshold > COMPACTION_THRESHOLD
@@ -194,6 +123,85 @@ impl KvStore {
         new_log_file(&self.path, gen, &mut self.readers)
     }
 }
+
+/// Implementation for KvsEngine
+impl KvEngine for KvStore {
+    /// Sets the value of a string key to a string.
+    ///
+    /// If the key already exists, the previous value will be overwritten.
+    fn set(&mut self, key: String, value: String) -> Result<()> {
+        let cmd = Command::set(key, value);
+        let pos = self.writer.pos;
+
+        let mut buffer = bson::to_vec(&cmd)?;
+        writeln!(buffer)?;
+        self.writer.write_all(&buffer)?;
+        self.writer.flush()?;
+
+        if let Command::Set { key, .. } = cmd {
+            if let Some(old_cmd) = self
+                .index
+                .insert(key, (self.current_gen, pos..self.writer.pos).into())
+            {
+                self.uncompacted += old_cmd.len;
+            }
+        }
+
+        if self.uncompacted > COMPACTION_THRESHOLD {
+            self.compact()?;
+        }
+
+        Ok(())
+    }
+
+    /// Gets the string value of a given string key.
+    ///
+    /// Returns `None` if the given key does not exist.
+    fn get(&mut self, key: String) -> Result<Option<String>> {
+        if let Some(cmd_pos) = self.index.get(&key) {
+            let reader = self
+                .readers
+                .get_mut(&cmd_pos.gen)
+                .expect("Cannot find log reader");
+
+            let buf_size = cmd_pos.len as usize;
+            let mut value_buf = vec![0u8; buf_size];
+
+            reader.seek(SeekFrom::Start(cmd_pos.pos))?;
+            reader.read_exact(&mut value_buf)?;
+
+            let document = Document::from_reader(&mut value_buf.as_slice()).unwrap();
+            if let Command::Set { value, .. } = bson::from_document(document)? {
+                Ok(Some(value))
+            } else {
+                Err(KvError::UnexpectedCommandType)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Remove a given key.
+    fn remove(&mut self, key: String) -> Result<()> {
+        if self.index.contains_key(&key) {
+            let cmd = Command::remove(key);
+            let buffer = bson::to_vec(&cmd)?;
+            self.writer.write_all(&buffer)?;
+            self.writer.flush()?;
+
+            if let Command::Remove { key } = cmd {
+                let old_cmd = self.index.remove(&key).expect("Key not found");
+                self.uncompacted += old_cmd.len;
+            }
+
+            Ok(())
+        } else {
+            Err(KvError::NotFound)
+        }
+    }
+}
+
+// impl Kv
 
 fn new_log_file(
     path: &Path,
