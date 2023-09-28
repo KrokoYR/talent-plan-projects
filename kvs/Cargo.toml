@@ -23,8 +23,13 @@ serde = { version = "1.0.188", features = ["derive"] }
 thiserror = "1.0.48"
 tempfile = "3.0.7"
 serde_json = "1.0.107"
-rand = "0.8.5"
+rand = { version = "0.8.5", features = ["small_rng"] }
 slog = "2.7.0"
 slog-term = "2.9.0"
 slog-async = "2.8.0"
 sled = "0.34.6"
+criterion = "0.5"
+
+[[bench]]
+name = "engine_bench"
+harness = false
